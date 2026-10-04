@@ -1,3 +1,6 @@
+// v3.2.8 — סימון "מעודכן"/"יש עדכון" גם לשורה "סדר הדורות בלבד". דורות.csv הוא קובץ
+// בודד בלי zip, ולכן ה-hash שלו מגיע מקובץ נפרד files_data.json (ולא מ-books_data.js —
+// כך גרסאות ישנות של התוסף לא נשברות מרשומה בלי zip). ראו fetchFilesData ו-dorotEntry.
 // v3.2.7 — בקובייה של הקישורים: תגית "יש עדכון" וכפתור "עדכן" בכותרת, והודעת
 // תזכורת לייבא מחדש באוצריא אחרי כל הורדה (ההורדה לבדה לא משנה כלום באוצריא).
 // v3.2.6 — "קבצי קישורים וסדר הדורות" יצאה מעץ הספרים והועברה לקובייה נפרדת
@@ -33,10 +36,13 @@ function booksDataUrl() {
 // גיבוי כש-raw.githubusercontent חסום (מסנני תוכן כמו NetFree מחזירים עמוד
 // חסימה במקומו) — Contents API של גיטהאב עצמו, שאינו נחסם באותו אופן.
 const CONTENTS_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/books_data.js?ref=main`;
+const FILES_DATA_URL   = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/files_data.json`;
+const FILES_API_URL    = `https://api.github.com/repos/${GITHUB_REPO}/contents/files_data.json?ref=main`;
 
 let expandedPaths  = new Set();
 let booted         = false;
 let currentManifest = [];
+let currentFiles    = [];   // קבצים בודדים (בלי zip) מתוך files_data.json — כרגע רק דורות.csv
 let filterNewOnly  = false;
 
 // "שס וגשל" בתוך "תלמוד בבלי" הוא ~475MB מתוך ~612MB. מי שלא מוריד אותו
@@ -208,6 +214,27 @@ async function fetchBooksData() {
     }
 }
 
+/// רשימת הקבצים הבודדים (דורות.csv). נשמרת בקובץ נפרד מ-books_data.js: גרסאות ישנות
+/// של התוסף מניחות שכל רשומה ב-books_data.js היא אוסף עם zip, ורשומה בלי zip הייתה
+/// מציגה אצלן שורה שההורדה ממנה נכשלת. כשל בטעינה אינו שגיאה — בלי הרשימה פשוט
+/// אין סימון "יש עדכון" לשורת "סדר הדורות בלבד" (וגם לפני שהקובץ נוצר במאגר).
+async function fetchFilesData() {
+    if (typeof Otzaria === 'undefined') return [];
+    const parse = text => {
+        const data = JSON.parse(text);
+        return Array.isArray(data) ? data.filter(f => f && f.path && f.hash) : [];
+    };
+    try {
+        const res = await fetchText(`${FILES_DATA_URL}?t=${Date.now()}`);
+        if (res.ok) return parse(res.body);
+    } catch { /* ננסה גיבוי */ }
+    try {
+        const res = await fetchText(FILES_API_URL, { headers: { Accept: 'application/vnd.github.raw' } });
+        if (res.ok) return parse(res.body);
+    } catch { /* אין רשימה */ }
+    return [];
+}
+
 // ─── boot ──────────────────────────────────────────────────────────
 
 async function boot(payload) {
@@ -239,6 +266,7 @@ async function boot(payload) {
     }
 
     currentManifest = data.map(item => ({ ...item, downloadUrl: LATEST_DL + item.zip }));
+    currentFiles = await fetchFilesData();
 
     cachedHashes = await getStoredHashes();
     await loadDestFolder();
@@ -532,6 +560,29 @@ async function saveHash(pathOrItem, hash) {
 /// ה-hash השמור של [item], אם ירד. תומך גם ברשומות ישנות שנשמרו לפי path.
 function storedHashFor(item) {
     return cachedHashes[statusKey(item)] ?? cachedHashes[item.path];
+}
+
+// ─── קבצים בודדים (בלי zip): דורות.csv ────────────────────────────
+
+const DOROT_PATH = LINKS_PATH + '/' + DOROT_FILE;
+
+/// הרשומה של דורות.csv מתוך files_data.json, או null (קובץ הרשימה עוד לא קיים/לא נטען).
+function dorotEntry() {
+    return currentFiles.find(f => f.path === DOROT_PATH) || null;
+}
+
+/// סטטוס של קובץ בודד: 'none' | 'ok' | 'update'. מפתח השמירה הוא ה-path (אין zip).
+function fileStatus(entry) {
+    if (!entry || !entry.hash) return 'none';
+    const stored = cachedHashes[statusKey(entry)];
+    if (!stored) return 'none';
+    return stored === entry.hash ? 'ok' : 'update';
+}
+
+async function saveFileHash(entry) {
+    if (!entry || !entry.hash) return;
+    cachedHashes[statusKey(entry)] = entry.hash;
+    await persistHashes(cachedHashes);
 }
 
 /// מה השתנה בתוך [item]: פריטים חדשים ופריטים שעודכנו מאז ההורדה האחרונה.
@@ -952,7 +1003,10 @@ function renderLinksCard() {
 /// היחיד שכולל את סדר הדורות); אחרת רק תתי-התיקיות שהשתנו.
 function linksUpdateTargets(root, kids) {
     if (root.hash && itemStatus(root) === 'update') return [root];
-    return kids.filter(k => k.hash && itemStatus(k) === 'update');
+    const targets = kids.filter(k => k.hash && itemStatus(k) === 'update');
+    const dorot = dorotEntry();
+    if (dorot && fileStatus(dorot) === 'update') targets.push(dorot);   // קובץ בודד — בלי zip
+    return targets;
 }
 
 async function startUpdateLinks(targets, btn) {
@@ -975,7 +1029,9 @@ async function startUpdateLinks(targets, btn) {
         if (cancelRequested) { cancelled = true; break; }
         showProgress(`מעדכן ${i + 1}/${targets.length}: ${targets[i].name}`,
                      Math.round(i / targets.length * 100));
-        const r = await downloadItemRecursive(targets[i], destFolder);
+        const t = targets[i];
+        const r = t.file ? await downloadDorotFile(t, destFolder)
+                         : await downloadItemRecursive(t, destFolder);
         succeeded += r.succeeded;
         failed.push(...r.failed);
         if (r.cancelled) { cancelled = true; break; }
@@ -1037,10 +1093,26 @@ function makeDorotRow(root) {
     const row = document.createElement('div');
     row.className = 'tree-row';
 
+    const entry = dorotEntry();
+    const status = fileStatus(entry);
+    if (status !== 'none') {
+        const ok = status === 'ok';
+        const icon = makeSvgIcon(ok ? MI_CHECK_CIRCLE : MI_SYNC, ok ? '#22c55e' : '#f59e0b');
+        icon.title = ok ? 'מעודכן' : 'יש עדכון זמין';
+        row.appendChild(icon);
+    }
+
     const name = document.createElement('span');
     name.className = 'node-name';
     name.textContent = 'סדר הדורות בלבד';
     row.appendChild(name);
+
+    if (entry && entry.size) {
+        const size = document.createElement('span');
+        size.className = 'node-size';
+        size.textContent = entry.size;
+        row.appendChild(size);
+    }
 
     const btn = document.createElement('button');
     btn.className = 'dl-btn';
@@ -1048,6 +1120,24 @@ function makeDorotRow(root) {
     btn.onclick = () => startDownloadDorot(btn);
     row.appendChild(btn);
     return row;
+}
+
+/// מוריד את דורות.csv ישירות מהענף הראשי (הוא יושב בתוך תיקיית האוסף במאגר ואין לו
+/// zip), ורושם את ה-hash שלו. מחזיר בפורמט של downloadItemRecursive.
+async function downloadDorotFile(entry, destFolder) {
+    if (cancelRequested) return { succeeded: 0, failed: [], cancelled: true };
+    // cache-buster: ה-CDN של raw מחזיק תשובה עד 5 דקות, וה-hash שנרשם הוא של הגרסה החדשה
+    const url = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/` +
+                encodeURI(`ספרים/${LINKS_PATH}/${DOROT_FILE}`) + `?t=${Date.now()}`;
+    setActivity(true);
+    const res = await downloadWithRetry(url, `${destFolder}/${LINKS_PATH}/${DOROT_FILE}`);
+    setActivity(false);
+    if (res.success) {
+        await saveFileHash(entry);
+        return { succeeded: 1, failed: [] };
+    }
+    if (res.cancelled) return { succeeded: 0, failed: [], cancelled: true };
+    return { succeeded: 0, failed: [{ name: 'סדר הדורות', msg: res.message, url }] };
 }
 
 async function startDownloadDorot(btn) {
@@ -1058,29 +1148,26 @@ async function startDownloadDorot(btn) {
     const destFolder = await resolveDestFolder('בחר תיקייה להורדת סדר הדורות');
     if (!destFolder) return;
 
-    // הקובץ יושב בתוך תיקיית האוסף במאגר; מורידים אותו ישירות מהענף הראשי.
-    const url = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/` +
-                encodeURI(`ספרים/${LINKS_PATH}/${DOROT_FILE}`);
-
+    const entry = dorotEntry();
     btn.disabled = true;
     btn.textContent = '...';
     dlDone = 0;
     dlTotal = 0;
     cancelRequested = false;
     showProgress('סדר הדורות', 0);
-    setActivity(true);
     try {
-        const res = await downloadWithRetry(url, `${destFolder}/${LINKS_PATH}/${DOROT_FILE}`);
-        setActivity(false);
-        if (res.success) {
+        const r = await downloadDorotFile(entry, destFolder);
+        if (r.succeeded) {
+            // אם כל מה שבשורש מעודכן עכשיו — גם "הכל" מסומן מעודכן
+            if (entry) await reconcileAncestors(entry);
             updateProgress(100, 'הושלם');
             showSuccess(`סדר הדורות הורד. ${LINKS_IMPORT_HINT}`, 20000);
-        } else if (res.cancelled) {
+        } else if (r.cancelled) {
             updateProgress(null, 'נעצר');
             showError('ההורדה נעצרה');
         } else {
-            showError(`ההורדה נכשלה: ${res.message || 'שגיאה'}`);
-            showFailedPanel([{ name: 'סדר הדורות', msg: res.message, url }]);
+            showError(`ההורדה נכשלה: ${r.failed[0]?.msg || 'שגיאה'}`);
+            showFailedPanel(r.failed);
         }
     } catch (e) {
         setActivity(false);
@@ -1089,6 +1176,7 @@ async function startDownloadDorot(btn) {
         btn.disabled = false;
         btn.textContent = 'הורד';
         setTimeout(hideProgress, 1200);
+        refreshTree();
     }
 }
 
@@ -1352,6 +1440,8 @@ async function downloadOneItem(node, destFolder) {
 
     dlDone++;
     await saveHash(node.path, node.hash);
+    // ה-zip של "הכל" כולל גם את דורות.csv, ולכן הוא עצמו מעודכן עכשיו
+    if (node.path === LINKS_PATH) await saveFileHash(dorotEntry());
     return { ok: true };
 }
 
