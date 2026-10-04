@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "otzaria-github-downloader",
   "name": "הורדת ספרים",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "הורדה ועדכון מאגר ספרים מ-GitHub",
   "author": "Yair Daniel",
   "stability": "beta",

@@ -250,6 +250,52 @@ svg.status-icon { flex-shrink: 0; display: block; }
     from { background-position: 150px 0; }
     to   { background-position: -150px 0; }
 }
+
+/* קובייה נפרדת: קבצי קישורים וסדר הדורות */
+#links-card {
+    display: none;
+    margin-top: 24px;
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.links-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface-container);
+}
+.links-title { flex: 1; font-weight: 700; font-size: 0.95rem; }
+.info-btn {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    font: italic 700 14px/1 Georgia, serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.info-btn:hover, .info-btn[aria-expanded="true"] {
+    background: var(--primary);
+    color: var(--on-primary);
+}
+.links-info {
+    padding: 12px 16px;
+    font-size: 0.86rem;
+    line-height: 1.7;
+    border-top: 1px solid var(--outline);
+    background: var(--surface);
+}
+.links-info p { margin-bottom: 6px; }
+.links-info ol { margin: 0 20px 6px 0; padding: 0; }
+.links-note { opacity: 0.65; font-size: 0.8rem; }
+.links-rows .tree-row { border-top: 1px solid var(--outline); }
 </style>
 </head>
 <body>
@@ -343,6 +389,9 @@ svg.status-icon { flex-shrink: 0; display: block; }
 <div id="tree">
     <div class="loading" id="loading">טוען רשימה...</div>
 </div>
+
+<!-- קובייה נפרדת: קבצי קישורים וסדר הדורות (מצוירת ב-renderLinksCard) -->
+<div id="links-card"></div>
 
 </div><!-- /.app-content -->
 </div><!-- /.app-shell -->

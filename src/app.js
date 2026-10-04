@@ -1,3 +1,6 @@
+// v3.2.6 — "קבצי קישורים וסדר הדורות" יצאה מעץ הספרים והועברה לקובייה נפרדת
+// (מסגרת משלה + בועת הסבר): ראו renderLinksCard. היא לא נספרת בסיכום, בחיפוש,
+// ב"חדשים ועדכונים", ב"הורד הכל" וב"עדכן שינויים" של הספרים.
 // v3.2.4 — שינוי שם/מיקום של תיקייה במאגר (PATH_RENAMES) מוזז עכשיו גם
 // בפועל בדיסק של המשתמש, לא רק בסטטוס ("מעודכן"/"חדש"): ראו
 // migrateRenamedFoldersOnDisk. דורש fs.moveEntry (אוצריא 0.9.98+, לא עדיין
@@ -39,6 +42,17 @@ let filterNewOnly  = false;
 // מחישובי הסטטוס וההורדה של התיקייה שמעליה.
 const SHAS_PATH = 'תלמוד בבלי/שס וגשל';
 let ignoreShas  = false;
+
+// תיקיית קבצי הקישורים וסדר הדורות — לא ספרים, ולכן מוצגת בקובייה משלה.
+const LINKS_PATH = 'קבצי קישורים וסדר הדורות';
+const DOROT_FILE = 'דורות.csv';
+function isLinksItem(item) {
+    return item.path === LINKS_PATH || item.path.startsWith(LINKS_PATH + '/');
+}
+/// הפריטים של עץ הספרים — בלי קבצי הקישורים.
+function booksOnly(manifest) {
+    return manifest.filter(i => !isLinksItem(i));
+}
 let cachedHashes   = {};   // טעון פעם אחת ב-boot, מתעדכן ב-saveHash
 let dlDone = 0, dlTotal = 0;
 let cancelRequested = false;   // מסומן ע"י כפתור "עצור"; נבדק בין קבצים/ניסיונות (לא ניתן לבטל הורדת קובץ בודד תוך כדי, אין API לכך)
@@ -231,6 +245,7 @@ async function boot(payload) {
     renderFullLibraryBtn();
     renderSummary();
     renderTree(currentManifest);
+    renderLinksCard();
     initSearch();
     await initFilterBtn();
 }
@@ -251,7 +266,7 @@ function buildTree(manifest, parentPath) {
 }
 
 function renderTree(manifest) {
-    const roots = buildTree(manifest, '');
+    const roots = buildTree(booksOnly(manifest), '');
     const container = document.getElementById('tree');
     container.innerHTML = '';
     if (!roots.length) {
@@ -557,7 +572,7 @@ async function setIgnoreShas(value) {
 // ─── סיכום סטטוס + רענון עץ ──────────────────────────────────────
 
 function renderSummary() {
-    const roots = currentManifest.filter(i => i.depth === 0 && i.hash);
+    const roots = booksOnly(currentManifest).filter(i => i.depth === 0 && i.hash);
     let upToDate = 0, needsUpdate = 0, notDownloaded = 0;
     for (const item of roots) {
         const status = itemStatus(item);
@@ -595,6 +610,7 @@ function refreshTree() {
     else if (q) renderSearchResults(q);
     else renderTree(currentManifest);
     renderSummary();
+    renderLinksCard();
 }
 
 // ─── פילטר חדש/עדכון ───────────────────────────────────────────────
@@ -627,7 +643,7 @@ async function toggleNewFilter() {
 }
 
 function renderNewUpdatedList() {
-    const results = currentManifest.filter(item => {
+    const results = booksOnly(currentManifest).filter(item => {
         if (!item.hash || item.depth !== 0) return false;
         return itemStatus(item) !== 'ok';
     });
@@ -846,6 +862,168 @@ async function reconcileAncestors(node) {
     await persistHashes(cachedHashes);
 }
 
+// ─── קובייה: קבצי קישורים וסדר הדורות ─────────────────────────────
+
+/// מציירת את הקובייה הנפרדת של קבצי הקישורים וסדר הדורות. נקראת בכל רענון
+/// כדי שסימוני "מעודכן"/"יש עדכון" יתעדכנו אחרי הורדה.
+function renderLinksCard() {
+    const host = document.getElementById('links-card');
+    if (!host) return;
+
+    const root = currentManifest.find(i => i.path === LINKS_PATH);
+    if (!root) { host.style.display = 'none'; return; }   // רשימה ישנה בלי התיקייה
+
+    // מצב הבועה נשמר בין רענונים, כדי שלא תיסגר באמצע קריאה.
+    const wasOpen = host.querySelector('.links-info')?.style.display === 'block';
+
+    host.style.display = 'block';
+    host.innerHTML = '';
+
+    const head = document.createElement('div');
+    head.className = 'links-head';
+
+    const title = document.createElement('span');
+    title.className = 'links-title';
+    title.textContent = 'קישורים וסדר הדורות';
+    head.appendChild(title);
+
+    const info = document.createElement('button');
+    info.className = 'info-btn';
+    info.type = 'button';
+    info.title = 'מה זה ואיך משתמשים?';
+    info.setAttribute('aria-label', 'מה זה ואיך משתמשים?');
+    info.setAttribute('aria-expanded', wasOpen ? 'true' : 'false');
+    info.textContent = 'i';
+    head.appendChild(info);
+    host.appendChild(head);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'links-info';
+    bubble.style.display = wasOpen ? 'block' : 'none';
+    bubble.innerHTML =
+        '<p><b>מה זה?</b> קבצי עזר שאוצריא מייבאת: <b>קבצי קישורים</b> שמחברים בין ספרי המאגר ' +
+        'הזה לבין המאגר הכללי של אוצריא (למשל מפרשים ומראי מקומות), וקובץ <b>סדר הדורות</b> ' +
+        'שמשייך כל ספר לדור שלו.</p>' +
+        '<p><b>למה כדאי?</b> בלי הקבצים האלה הספרים שהורדת מהמאגר עומדים לבדם: לא יופיעו ' +
+        'קישורים בינם לבין הספרים הרגילים באוצריא, והם לא יסודרו לפי דורות.</p>' +
+        '<p><b>איך משתמשים?</b></p>' +
+        '<ol>' +
+        '<li>לחץ "הורד" — מומלץ על השורה הראשונה, שכוללת הכל.</li>' +
+        '<li>באוצריא היכנס אל <b>הגדרות ← ספרייה ← ייבוא דורות וקשרים</b>.</li>' +
+        '<li>בחר שם את הקבצים שהורדת — הם נמצאים בתיקייה "' + LINKS_PATH + '" בתוך תיקיית ההורדה.</li>' +
+        '</ol>' +
+        '<p class="links-note">מומלץ להוריד אחרי שהורדת את הספרים עצמם. כשהמאגר מתעדכן — ' +
+        'הורד שוב וייבא מחדש.</p>';
+    host.appendChild(bubble);
+
+    info.addEventListener('click', () => {
+        const open = bubble.style.display !== 'block';
+        bubble.style.display = open ? 'block' : 'none';
+        info.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    const rows = document.createElement('div');
+    rows.className = 'links-rows';
+    rows.appendChild(makeLinksRow(root, 'הכל — סדר הדורות וכל הקישורים', true));
+    rows.appendChild(makeDorotRow(root));
+    currentManifest.filter(i => i.parent === LINKS_PATH)
+        .forEach(k => rows.appendChild(makeLinksRow(k, k.name, false)));
+    host.appendChild(rows);
+}
+
+function makeLinksRow(node, label, strong) {
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+
+    const status = node.hash ? itemStatus(node) : 'none';
+    if (status !== 'none') {
+        const ok = status === 'ok';
+        const icon = makeSvgIcon(ok ? MI_CHECK_CIRCLE : MI_SYNC, ok ? '#22c55e' : '#f59e0b');
+        icon.title = ok ? 'מעודכן' : 'יש עדכון זמין';
+        row.appendChild(icon);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'node-name';
+    name.style.fontWeight = strong ? '700' : '400';
+    name.textContent = label;
+    row.appendChild(name);
+
+    if (node.size) {
+        const size = document.createElement('span');
+        size.className = 'node-size';
+        size.textContent = node.size;
+        row.appendChild(size);
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'dl-btn';
+    btn.textContent = 'הורד';
+    btn.onclick = () => startDownload(node, btn);
+    row.appendChild(btn);
+    return row;
+}
+
+/// שורה להורדת קובץ סדר הדורות לבדו — קובץ בודד שאין לו zip משלו.
+function makeDorotRow(root) {
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+
+    const name = document.createElement('span');
+    name.className = 'node-name';
+    name.textContent = 'סדר הדורות בלבד';
+    row.appendChild(name);
+
+    const btn = document.createElement('button');
+    btn.className = 'dl-btn';
+    btn.textContent = 'הורד';
+    btn.onclick = () => startDownloadDorot(btn);
+    row.appendChild(btn);
+    return row;
+}
+
+async function startDownloadDorot(btn) {
+    if (typeof Otzaria === 'undefined') {
+        showError('התוסף פועל רק בתוך אוצריא.');
+        return;
+    }
+    const destFolder = await resolveDestFolder('בחר תיקייה להורדת סדר הדורות');
+    if (!destFolder) return;
+
+    // הקובץ יושב בתוך תיקיית האוסף במאגר; מורידים אותו ישירות מהענף הראשי.
+    const url = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/` +
+                encodeURI(`ספרים/${LINKS_PATH}/${DOROT_FILE}`);
+
+    btn.disabled = true;
+    btn.textContent = '...';
+    dlDone = 0;
+    dlTotal = 0;
+    cancelRequested = false;
+    showProgress('סדר הדורות', 0);
+    setActivity(true);
+    try {
+        const res = await downloadWithRetry(url, `${destFolder}/${LINKS_PATH}/${DOROT_FILE}`);
+        setActivity(false);
+        if (res.success) {
+            updateProgress(100, 'הושלם');
+            showSuccess('סדר הדורות הורד בהצלחה');
+        } else if (res.cancelled) {
+            updateProgress(null, 'נעצר');
+            showError('ההורדה נעצרה');
+        } else {
+            showError(`ההורדה נכשלה: ${res.message || 'שגיאה'}`);
+            showFailedPanel([{ name: 'סדר הדורות', msg: res.message, url }]);
+        }
+    } catch (e) {
+        setActivity(false);
+        showError('שגיאה: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'הורד';
+        setTimeout(hideProgress, 1200);
+    }
+}
+
 // ─── חיפוש ─────────────────────────────────────────────────────────
 
 function initSearch() {
@@ -870,7 +1048,7 @@ function initSearch() {
 
 function renderSearchResults(query) {
     const q = query.trim().toLowerCase();
-    const matches = currentManifest.filter(item =>
+    const matches = booksOnly(currentManifest).filter(item =>
         item.name.toLowerCase().includes(q) || item.path.toLowerCase().includes(q)
     );
 
@@ -1223,7 +1401,7 @@ async function startDownloadAll(btn) {
         return;
     }
 
-    const rootItems = currentManifest.filter(item => item.depth === 0);
+    const rootItems = booksOnly(currentManifest).filter(item => item.depth === 0);
     if (!rootItems.length) return;
 
     // דלג על מה שכבר מעודכן
@@ -1290,7 +1468,7 @@ async function startDownloadUpdates(btn) {
     }
 
     // רק פריטים שהורדו כבר אבל ה-hash השתנה
-    const toUpdate = currentManifest
+    const toUpdate = booksOnly(currentManifest)
         .filter(item => item.depth === 0 && item.hash && itemStatus(item) === 'update')
         .flatMap(updateTargets);
 
