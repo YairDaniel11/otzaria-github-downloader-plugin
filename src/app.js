@@ -1,3 +1,5 @@
+// v3.2.7 — בקובייה של הקישורים: תגית "יש עדכון" וכפתור "עדכן" בכותרת, והודעת
+// תזכורת לייבא מחדש באוצריא אחרי כל הורדה (ההורדה לבדה לא משנה כלום באוצריא).
 // v3.2.6 — "קבצי קישורים וסדר הדורות" יצאה מעץ הספרים והועברה לקובייה נפרדת
 // (מסגרת משלה + בועת הסבר): ראו renderLinksCard. היא לא נספרת בסיכום, בחיפוש,
 // ב"חדשים ועדכונים", ב"הורד הכל" וב"עדכן שינויים" של הספרים.
@@ -46,6 +48,7 @@ let ignoreShas  = false;
 // תיקיית קבצי הקישורים וסדר הדורות — לא ספרים, ולכן מוצגת בקובייה משלה.
 const LINKS_PATH = 'קבצי קישורים וסדר הדורות';
 const DOROT_FILE = 'דורות.csv';
+const LINKS_IMPORT_HINT = 'כדי שזה ייכנס לתוקף — ייבא באוצריא: הגדרות ← ספרייה ← ייבוא דורות וקשרים';
 function isLinksItem(item) {
     return item.path === LINKS_PATH || item.path.startsWith(LINKS_PATH + '/');
 }
@@ -887,6 +890,21 @@ function renderLinksCard() {
     title.textContent = 'קישורים וסדר הדורות';
     head.appendChild(title);
 
+    const kids = currentManifest.filter(i => i.parent === LINKS_PATH);
+    const pending = linksUpdateTargets(root, kids);
+    if (pending.length) {
+        const badge = document.createElement('span');
+        badge.className = 'links-badge';
+        badge.textContent = 'יש עדכון';
+        head.appendChild(badge);
+
+        const upd = document.createElement('button');
+        upd.className = 'dl-btn links-update-btn';
+        upd.textContent = 'עדכן';
+        upd.onclick = () => startUpdateLinks(pending, upd);
+        head.appendChild(upd);
+    }
+
     const info = document.createElement('button');
     info.className = 'info-btn';
     info.type = 'button';
@@ -926,9 +944,59 @@ function renderLinksCard() {
     rows.className = 'links-rows';
     rows.appendChild(makeLinksRow(root, 'הכל — סדר הדורות וכל הקישורים', true));
     rows.appendChild(makeDorotRow(root));
-    currentManifest.filter(i => i.parent === LINKS_PATH)
-        .forEach(k => rows.appendChild(makeLinksRow(k, k.name, false)));
+    kids.forEach(k => rows.appendChild(makeLinksRow(k, k.name, false)));
     host.appendChild(rows);
+}
+
+/// מה צריך להוריד כדי לעדכן את הקובייה. אם "הכל" התעדכן — מורידים אותו (הוא
+/// היחיד שכולל את סדר הדורות); אחרת רק תתי-התיקיות שהשתנו.
+function linksUpdateTargets(root, kids) {
+    if (root.hash && itemStatus(root) === 'update') return [root];
+    return kids.filter(k => k.hash && itemStatus(k) === 'update');
+}
+
+async function startUpdateLinks(targets, btn) {
+    if (typeof Otzaria === 'undefined') {
+        showError('התוסף פועל רק בתוך אוצריא.');
+        return;
+    }
+    const destFolder = await resolveDestFolder('בחר תיקייה לעדכון קבצי הקישורים');
+    if (!destFolder) return;
+
+    btn.disabled = true;
+    btn.textContent = '...';
+    dlDone = 0;
+    dlTotal = targets.length;
+    cancelRequested = false;
+
+    let succeeded = 0, cancelled = false;
+    const failed = [];
+    for (let i = 0; i < targets.length; i++) {
+        if (cancelRequested) { cancelled = true; break; }
+        showProgress(`מעדכן ${i + 1}/${targets.length}: ${targets[i].name}`,
+                     Math.round(i / targets.length * 100));
+        const r = await downloadItemRecursive(targets[i], destFolder);
+        succeeded += r.succeeded;
+        failed.push(...r.failed);
+        if (r.cancelled) { cancelled = true; break; }
+    }
+
+    if (cancelled) {
+        updateProgress(null, 'נעצר');
+        showError('העדכון נעצר');
+    } else if (failed.length) {
+        showError(`העדכון נכשל — ${failed.length} פריטים`);
+        showFailedPanel(failed);
+    } else {
+        updateProgress(100, 'הושלם');
+        await reconcileAncestors(targets[0]);
+        showSuccess(`קבצי הקישורים עודכנו. ${LINKS_IMPORT_HINT}`, 20000);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'עדכן';
+    setTimeout(hideProgress, 1500);
+    refreshTree();
 }
 
 function makeLinksRow(node, label, strong) {
@@ -1006,7 +1074,7 @@ async function startDownloadDorot(btn) {
         setActivity(false);
         if (res.success) {
             updateProgress(100, 'הושלם');
-            showSuccess('סדר הדורות הורד בהצלחה');
+            showSuccess(`סדר הדורות הורד. ${LINKS_IMPORT_HINT}`, 20000);
         } else if (res.cancelled) {
             updateProgress(null, 'נעצר');
             showError('ההורדה נעצרה');
@@ -1364,7 +1432,8 @@ async function startDownload(node, btn) {
             updateProgress(100, 'הושלם');
             if (!failed.length) {
                 await reconcileAncestors(node);
-                showSuccess(`"${node.name}" הורד וחולץ בהצלחה`);
+                if (isLinksItem(node)) showSuccess(`"${node.name}" הורד. ${LINKS_IMPORT_HINT}`, 20000);
+                else showSuccess(`"${node.name}" הורד וחולץ בהצלחה`);
             } else if (succeeded > 0) {
                 showError(`חלק הורד (${succeeded} פריטים). נכשלו: ${failed.map(f => f.name).join(', ')}`);
             } else {
@@ -1552,12 +1621,14 @@ function hideProgress() {
     if (stopBtn) { stopBtn.style.display = 'none'; stopBtn.disabled = false; }
 }
 
-function showSuccess(msg) {
+let successTimer = null;
+function showSuccess(msg, ms = 7000) {
     const el = document.getElementById('success-msg');
     if (!el) return;
     el.textContent = '✓ ' + msg;
     el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 7000);
+    clearTimeout(successTimer);
+    successTimer = setTimeout(() => { el.style.display = 'none'; }, ms);
 }
 
 function showFailedPanel(failed) {
