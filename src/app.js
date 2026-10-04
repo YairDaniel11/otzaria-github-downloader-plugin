@@ -1,3 +1,7 @@
+// v3.3.0 — מחיקת קבצים ישנים אחרי עדכון. התוסף חילץ zip מעל התיקייה ולא מחק קבצים שהוסרו או שינו
+// שם במאגר, ולכן נשארו הקבצים הישנים לצד החדשים (אותו ספר פעמיים באוצריא). המאגר מפרסם את
+// removed_files.json (נבנה ב-workflow מההיסטוריה של git), ואחרי חילוץ מוצלח של אוסף נמחקים ממנו הנתיבים
+// הישנים שהוחלפו. ראו removals.js ו-cleanupRemovedFiles. דורש fs.deleteFile (אוצריא 0.9.93+).
 // v3.2.8 — סימון "מעודכן"/"יש עדכון" גם לשורה "סדר הדורות בלבד". דורות.csv הוא קובץ
 // בודד בלי zip, ולכן ה-hash שלו מגיע מקובץ נפרד files_data.json (ולא מ-books_data.js —
 // כך גרסאות ישנות של התוסף לא נשברות מרשומה בלי zip). ראו fetchFilesData ו-dorotEntry.
@@ -38,10 +42,14 @@ function booksDataUrl() {
 const CONTENTS_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/books_data.js?ref=main`;
 const FILES_DATA_URL   = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/files_data.json`;
 const FILES_API_URL    = `https://api.github.com/repos/${GITHUB_REPO}/contents/files_data.json?ref=main`;
+const REMOVED_URL      = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/removed_files.json`;
+const REMOVED_API_URL  = `https://api.github.com/repos/${GITHUB_REPO}/contents/removed_files.json?ref=main`;
 
 let expandedPaths  = new Set();
 let booted         = false;
 let currentManifest = [];
+let currentRemovals = [];   // נתיבים שהוסרו/הועברו במאגר (removed_files.json)
+let removedThisRun  = 0;    // כמה קבצים ישנים נמחקו בפעולה הנוכחית (להודעת ההצלחה)
 let currentFiles    = [];   // קבצים בודדים (בלי zip) מתוך files_data.json — כרגע רק דורות.csv
 let filterNewOnly  = false;
 
@@ -235,6 +243,21 @@ async function fetchFilesData() {
     return [];
 }
 
+/// removed_files.json: הנתיבים שהוסרו או הועברו במאגר. כשל בטעינה אינו שגיאה: בלי הרשימה פשוט אין ניקוי
+/// של קבצים ישנים (התנהגות גרסאות קודמות).
+async function fetchRemovals() {
+    if (typeof Otzaria === 'undefined' || typeof Removals === 'undefined') return [];
+    try {
+        const res = await fetchText(`${REMOVED_URL}?t=${Date.now()}`);
+        if (res.ok) return Removals.parseRemovals(res.body);
+    } catch { /* ננסה גיבוי */ }
+    try {
+        const res = await fetchText(REMOVED_API_URL, { headers: { Accept: 'application/vnd.github.raw' } });
+        if (res.ok) return Removals.parseRemovals(res.body);
+    } catch { /* אין רשימה */ }
+    return [];
+}
+
 // ─── boot ──────────────────────────────────────────────────────────
 
 async function boot(payload) {
@@ -267,6 +290,7 @@ async function boot(payload) {
 
     currentManifest = data.map(item => ({ ...item, downloadUrl: LATEST_DL + item.zip }));
     currentFiles = await fetchFilesData();
+    currentRemovals = await fetchRemovals();
 
     cachedHashes = await getStoredHashes();
     await loadDestFolder();
@@ -560,6 +584,49 @@ async function saveHash(pathOrItem, hash) {
 /// ה-hash השמור של [item], אם ירד. תומך גם ברשומות ישנות שנשמרו לפי path.
 function storedHashFor(item) {
     return cachedHashes[statusKey(item)] ?? cachedHashes[item.path];
+}
+
+// ─── מחיקת קבצים ישנים (removed_files.json) ───────────────────────
+
+/// מפה { נתיב-אוסף: זמן } של מה שכבר הוחל. נשמרת לפי תיקיית היעד, כי מי שמחליף תיקייה צריך ניקוי מחדש.
+async function getRemovedApplied(destFolder) {
+    try {
+        const res = await Otzaria.call('storage.get', { key: 'removed_applied' });
+        const all = res?.data || {};
+        return all && typeof all === 'object' ? all : {};
+    } catch { return {}; }
+}
+
+async function setRemovedApplied(all) {
+    try { await Otzaria.call('storage.set', { key: 'removed_applied', value: all }); } catch { /* לא קריטי */ }
+}
+
+/// אחרי חילוץ מוצלח של [node]: מוחק מתיקיית המשתמש את הנתיבים הישנים שהאוסף הזה החליף.
+/// [hadHash] = האוסף כבר ירד בעבר (ולכן יש בדיסק מה לנקות). בהורדה ראשונה רק מסמנים שהכל הוחל.
+async function cleanupRemovedFiles(node, destFolder, hadHash) {
+    if (!currentRemovals.length || typeof Removals === 'undefined' || typeof Otzaria === 'undefined') return;
+    const all = await getRemovedApplied();
+    const key = destFolder + '|' + node.path;
+    if (!hadHash) {
+        const t = Removals.maxTFor(currentRemovals, node.path);
+        if (t > (all[key] || 0)) { all[key] = t; await setRemovedApplied(all); }
+        return;
+    }
+    const r = await Removals.applyRemovals({
+        entries: currentRemovals, nodePath: node.path, destFolder,
+        appliedT: all[key] || 0, call: (m, p) => Otzaria.call(m, p),
+    });
+    if (r.appliedT > (all[key] || 0)) { all[key] = r.appliedT; await setRemovedApplied(all); }
+    removedThisRun += r.deleted;
+    if (r.deleted || r.failed) console.log(`ניקוי "${node.name}": נמחקו ${r.deleted}, לא נמצאו ${r.missing}, נכשלו ${r.failed}${r.unsupported ? ' (אוצריא ישנה מדי למחיקה)' : ''}`);
+}
+
+/// תוספת להודעת הצלחה: כמה קבצים ישנים נמחקו (ומאפסת את המונה).
+function removedNote() {
+    if (!removedThisRun) return '';
+    const n = removedThisRun;
+    removedThisRun = 0;
+    return ` (נמחקו ${n} קבצים ישנים שהוחלפו)`;
 }
 
 // ─── קבצים בודדים (בלי zip): דורות.csv ────────────────────────────
@@ -1422,6 +1489,7 @@ async function downloadOneItem(node, destFolder) {
     const extractPath = destFolder + '/' + node.path;
     const counter     = dlTotal > 0 ? ` [${dlDone + 1}/${dlTotal}]` : '';
 
+    const hadHash = !!storedHashFor(node);   // האוסף כבר ירד בעבר: יש מה לנקות אחרי העדכון
     updateProgress(null, `${counter} מוריד: ${node.name}...`);
     setActivity(true);
     const dlRes = await downloadWithRetry(node.downloadUrl, zipPath);
@@ -1438,6 +1506,7 @@ async function downloadOneItem(node, destFolder) {
         return { ok: false, timeout: false, cancelled: !!extRes.cancelled, msg: extRes.cancelled ? undefined : 'חילוץ נכשל — ' + extRes.message };
     }
 
+    await cleanupRemovedFiles(node, destFolder, hadHash).catch(() => {});
     dlDone++;
     await saveHash(node.path, node.hash);
     // ה-zip של "הכל" כולל גם את דורות.csv, ולכן הוא עצמו מעודכן עכשיו
@@ -1715,7 +1784,7 @@ let successTimer = null;
 function showSuccess(msg, ms = 7000) {
     const el = document.getElementById('success-msg');
     if (!el) return;
-    el.textContent = '✓ ' + msg;
+    el.textContent = '✓ ' + msg + removedNote();
     el.style.display = 'block';
     clearTimeout(successTimer);
     successTimer = setTimeout(() => { el.style.display = 'none'; }, ms);
