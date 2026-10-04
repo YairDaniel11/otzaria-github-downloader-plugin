@@ -67,6 +67,22 @@ test('applyRemovals: אוצריא ישנה (unknown_method) עוצרת, בלי �
     assert.equal(call.calls.length, 1);
 });
 
+test('isSafePath: דוחה נתיבים שאינם נראים כנתיב ספר', () => {
+    const bad = ['../x.txt', 'א/../../ב.txt', '/etc/passwd', 'C:/Windows/x', 'c:x', 'א\\ב.txt', 'א//ב.txt', './א.txt',
+        'א/./ב.txt', 'א/ב.txt\n', ' א/ב.txt', 'א /ב.txt', '', 'א/', 'א\u0000.txt', 'א\u001f.txt'];
+    for (const p of bad) assert.equal(R.isSafePath(p), false, JSON.stringify(p));
+    const ok = ['א/ב.txt', 'תלמוד בבלי/מחברי זמננו/שיעורי הגר״י שרייבר - בבא קמא - איזהו נשך.txt',
+        "תנ״ך/ראשונים/ר' יוסף כספי/איוב - רש״י.txt", 'a.txt'];
+    for (const p of ok) assert.equal(R.isSafePath(p), true, p);
+    assert.equal(R.isSafePath(5), false);
+    assert.equal(R.isSafePath(undefined), false);
+});
+
+test('parseRemovals: רשומה עם נתיב לא בטוח (path או to) נזרקת', () => {
+    const list = [E(1, 'א/ב.txt'), E(2, '../ג.txt'), E(3, 'ד/ה.txt', '/abs/x.txt'), E(4, 'ו/ז.txt', 'ו/ח.txt')];
+    assert.deepEqual(R.parseRemovals(JSON.stringify({ removed: list })).map(e => e.t), [1, 4]);
+});
+
 test('maxTFor: הזמן המרבי של האוסף (להורדה ראשונה)', () => {
     const entries = [E(10, 'א/ב.txt'), E(40, 'ג/ד.txt', 'א/ה.txt'), E(99, 'ו/ז.txt')];
     assert.equal(R.maxTFor(entries, 'א'), 40);

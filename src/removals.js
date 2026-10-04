@@ -14,14 +14,25 @@
 (function (root) {
     'use strict';
 
+    /// נתיב בטוח למחיקה: יחסי, בלי "." או ".." או קטעים ריקים, בלי backslash, בלי אות כונן ובלי תווי בקרה.
+    /// אוצריא כבר חוסמת מחיקה מחוץ לתיקייה שנבחרה. זו הגנה נוספת מפני רשימה שהשתנתה: גם בתוך התיקייה
+    /// מוחקים רק מה שנראה כנתיב ספר.
+    const UNSAFE_CHARS = /[\\\u0000-\u001f]/;
+    const ABSOLUTE = /^[\/]|^[A-Za-z]:/;
+    function isSafePath(p) {
+        if (typeof p !== 'string' || !p || p.length > 600) return false;
+        if (UNSAFE_CHARS.test(p) || ABSOLUTE.test(p)) return false;
+        return p.split('/').every(seg => seg && seg !== '.' && seg !== '..' && seg.trim() === seg);
+    }
+
     /// פענוח התוכן של removed_files.json. מחזיר מערך רשומות תקינות (ריק אם הקובץ פגום).
     function parseRemovals(text) {
         try {
             const d = JSON.parse(text);
             const arr = Array.isArray(d) ? d : (d && d.removed);
             if (!Array.isArray(arr)) return [];
-            return arr.filter(e => e && typeof e.path === 'string' && e.path && Number.isFinite(e.t) &&
-                (e.to === undefined || typeof e.to === 'string'));
+            return arr.filter(e => e && Number.isFinite(e.t) && isSafePath(e.path) &&
+                (e.to === undefined || isSafePath(e.to)));
         } catch { return []; }
     }
 
@@ -74,7 +85,7 @@
         return entries.filter(e => belongsTo(e, nodePath)).reduce((m, e) => Math.max(m, e.t), 0);
     }
 
-    const api = { parseRemovals, belongsTo, pendingFor, applyRemovals, maxTFor };
+    const api = { isSafePath, parseRemovals, belongsTo, pendingFor, applyRemovals, maxTFor };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     root.Removals = api;
 })(typeof window !== 'undefined' ? window : globalThis);
