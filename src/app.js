@@ -1,3 +1,5 @@
+// v3.3.2 — מסך ראשי חדש: הורדת המסד "מאגר ספרים לא רשמי" (dbview.js, dbmodule.js), דף עזרה, ו-TXT הפך לתצוגה
+// משנית (כפתור "הורדת ספרים כקבצי TXT"). קוד התצוגה הישנה בקובץ הזה לא השתנה, מלבד חלון ההמלצה ב"הורד הכל".
 // v3.3.1 — הקשחה: removals.js מסנן מ-removed_files.json כל נתיב שאינו נראה כנתיב ספר (עם .., נתיב מוחלט,
 // אות כונן, backslash או תווי בקרה). אוצריא כבר חוסמת מחיקה מחוץ לתיקייה שנבחרה; זו הגנה נוספת.
 // v3.3.0 — מחיקת קבצים ישנים אחרי עדכון. התוסף חילץ zip מעל התיקייה ולא מחק קבצים שהוסרו או שינו
@@ -1621,7 +1623,11 @@ function resetBtn(btn) {
 function renderFullLibraryBtn() {
     const btn = document.getElementById('full-library-btn');
     if (!btn) return;
-    btn.onclick = () => startDownloadAll(btn);
+    // v3.3.2: לפני "הורד הכל" מוצג חלון שממליץ על המסד (dbview.js). בלי dbview.js — ממשיך ישר.
+    btn.onclick = () => {
+        if (typeof confirmFullDownload === 'function') confirmFullDownload(() => startDownloadAll(btn));
+        else startDownloadAll(btn);
+    };
     btn.style.display = 'inline-flex';
 }
 
@@ -1912,7 +1918,7 @@ function applyTheme(theme) {
                        r.setProperty('--on-surface-variant', cs.onSurfaceVariant);
     if (theme.typography) {
         const t = theme.typography;
-        if (t.fontFamily) r.setProperty('--font-family', t.fontFamily + ', system-ui, sans-serif');
+        // הפונט קבוע (כמו בתוסף 'מעצב חוברות'): לא נדרס ע"י הפונט של ערכת הנושא
         if (t.fontSize)   r.setProperty('--font-size',   t.fontSize + 'px');
         if (t.lineHeight) r.setProperty('--line-height', t.lineHeight);
     }

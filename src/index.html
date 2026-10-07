@@ -14,7 +14,7 @@
     --topbar: #ECE6F0;
     --on-surface-variant: #49454F;
     --outline: #d1d5db;
-    --font-family: system-ui, sans-serif;
+    --font-family: 'Segoe UI',system-ui,-apple-system,'Arial Hebrew',Arial,sans-serif;
     --font-size: 15px;
     --line-height: 1.5;
 }
@@ -305,13 +305,327 @@ svg.status-icon { flex-shrink: 0; display: block; }
 .links-info ol { margin: 0 20px 6px 0; padding: 0; }
 .links-note { opacity: 0.65; font-size: 0.8rem; }
 .links-rows .tree-row { border-top: 1px solid var(--outline); }
+
+/* ─── תצוגות: חלון המסד (ברירת מחדל) / עזרה / TXT ─── */
+.view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.view[hidden] { display: none; }
+.back-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: transparent; color: var(--primary);
+    border: 1px solid var(--outline); border-radius: 20px;
+    padding: 5px 14px; font-family: inherit; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.back-btn:hover { background: var(--surface-container); }
+.topbar-start { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.page { max-width: 760px; margin: 0 auto; }
+
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: none; border-radius: 20px; padding: 9px 22px;
+    font-family: inherit; font-size: 0.92rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+}
+.btn:hover { opacity: 0.88; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible, .back-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn-primary { background: var(--primary); color: var(--on-primary); }
+.btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+.btn-text { background: transparent; color: var(--on-surface); border: 1px solid var(--outline); font-weight: 600; }
+.link-btn {
+    background: none; border: none; padding: 0; font: inherit; font-size: 0.85rem;
+    color: var(--primary); cursor: pointer; text-decoration: underline;
+}
+
+.db-card {
+    border: 1px solid var(--outline); border-radius: 12px;
+    background: var(--surface-container); padding: 16px 18px; margin-bottom: 16px;
+}
+.db-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.db-name { font-size: 1.1rem; font-weight: 700; flex: 1; min-width: 0; }
+.db-chip {
+    background: var(--surface); border: 1px solid var(--outline); border-radius: 99px;
+    padding: 2px 12px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.db-sub { font-size: 0.85rem; color: var(--on-surface-variant); }
+.db-steps { margin: 6px 22px 0 0; padding: 0; line-height: 1.8; font-size: 0.92rem; }
+.db-steps li { margin-bottom: 4px; }
+.section-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 8px; }
+
+.db-folder {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--outline); border-radius: 10px;
+    padding: 8px 12px; margin: 14px 0 12px; font-size: 0.85rem;
+}
+.db-folder .lbl { color: var(--on-surface-variant); flex-shrink: 0; }
+.db-folder .path {
+    direction: ltr; text-align: left; flex: 1; min-width: 0; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.db-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.db-progress {
+    display: none; margin-top: 14px; background: var(--surface);
+    border: 1px solid var(--outline); border-radius: 10px; padding: 12px 14px;
+}
+.db-progress .row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85rem; margin-bottom: 8px; }
+.db-bar { background: var(--outline); border-radius: 99px; height: 6px; overflow: hidden; position: relative; }
+.db-bar > i {
+    position: absolute; top: 0; bottom: 0; width: 35%; border-radius: 99px;
+    background: var(--primary); animation: db-slide 1.3s ease-in-out infinite;
+}
+@keyframes db-slide { from { right: -35%; } to { right: 100%; } }
+@media (prefers-reduced-motion: reduce) { .db-bar > i { animation: none; width: 100%; opacity: 0.5; } }
+
+.notice { display: none; border-radius: 10px; padding: 12px 16px; margin-top: 14px; font-size: 0.9rem; line-height: 1.7; }
+.notice.ok { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+.notice.warn { background: #fff8e1; color: #92400e; border: 1px solid #ffe082; }
+.notice.err { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+.notice b { font-weight: 700; }
+
+.txt-switch {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    border: 1px dashed var(--outline); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+}
+.txt-switch .t { flex: 1; min-width: 200px; font-size: 0.85rem; color: var(--on-surface-variant); }
+.txt-switch .t b { display: block; color: var(--on-surface); font-size: 0.95rem; margin-bottom: 2px; }
+
+/* עזרה */
+.help h3 { font-size: 1.05rem; margin: 26px 0 8px; padding-top: 4px; }
+.help h3:first-child { margin-top: 0; }
+.help h4 { font-size: 0.95rem; margin: 18px 0 6px; }
+.help p, .help li { font-size: 0.92rem; line-height: 1.8; }
+.help p { margin-bottom: 8px; }
+.help ul, .help ol { margin: 0 22px 8px 0; padding: 0; }
+.help code {
+    direction: ltr; unicode-bidi: embed; font-family: ui-monospace, Consolas, monospace;
+    background: var(--surface-container); border-radius: 4px; padding: 1px 5px; font-size: 0.85em;
+}
+.shot { margin: 8px 0 14px; }
+.shot img { display: block; max-width: 100%; height: auto; border: 1px solid var(--outline); border-radius: 10px; background: var(--surface-container); }
+.help { overflow-wrap: anywhere; }
+.shot .ph {
+    display: none; align-items: center; justify-content: center; text-align: center;
+    min-height: 120px; padding: 12px; border: 2px dashed var(--outline); border-radius: 10px;
+    color: var(--on-surface-variant); font-size: 0.82rem; background: var(--surface-container);
+}
+.shot.missing img { display: none; }
+.shot.missing .ph { display: flex; }
+.shot figcaption { font-size: 0.78rem; color: var(--on-surface-variant); margin-top: 4px; }
+
+/* חלון ההמלצה ב"הורד הכל" */
+.modal-scrim {
+    position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(0,0,0,0.45);
+}
+.modal-scrim[hidden] { display: none; }
+.modal {
+    background: var(--surface); color: var(--on-surface); border: 1px solid var(--outline);
+    border-radius: 14px; padding: 20px 22px; max-width: 460px; width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 100%; overflow-y: auto;
+}
+.modal h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.modal p { font-size: 0.9rem; line-height: 1.7; margin-bottom: 8px; }
+.modal ul { margin: 0 20px 10px 0; padding: 0; font-size: 0.9rem; line-height: 1.7; }
+.modal label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin: 12px 0; cursor: pointer; }
+.modal .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+
+/* ─── מסך המסד והעזרה (view-db / view-help): עמוד רחב וגופן גדול. תצוגת ה-TXT לא מושפעת ─── */
+html { overflow-x: hidden; }
+.view { min-width: 0; width: 100%; }
+.ltr, bdi[dir="ltr"], code[dir="ltr"] { unicode-bidi: isolate; direction: ltr; white-space: nowrap; }
+.vw .topbar { height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 6px; padding-block: 6px; }
+.vw .topbar h2, .vw .topbar-start { min-width: 0; }
+.vw .topbar h2 { font-size: 1.15rem; overflow-wrap: anywhere; }
+.vw .back-btn { min-height: 36px; padding: 5px 16px; font-size: 0.88rem; }
+.vw .app-content { padding: 22px 56px 60px; }
+.vw .page { width: 100%; max-width: none; margin: 0; font-size: 1.05rem; line-height: 1.7; }
+.vw .db-card { padding: 22px 36px; border-radius: 16px; }
+.vw .db-head { gap: 14px; margin-bottom: 8px; }
+.vw .db-name { font-size: 1.55rem; }
+.vw .db-chip { font-size: 0.95rem; padding: 6px 18px; }
+.vw .db-sub { font-size: 0.98rem; line-height: 1.6; }
+.vw .section-title { font-size: 1.25rem; margin-top: 14px !important; }
+.vw .db-steps { font-size: 1.04rem; line-height: 1.8; margin-right: 28px; }
+.vw .db-steps li { margin-bottom: 5px; }
+.vw .db-steps .alt { font-size: 0.93rem; color: var(--on-surface-variant); }
+.vw .db-folder { font-size: 0.98rem; padding: 10px 16px; border-radius: 12px; gap: 12px; }
+.vw .db-folder .btn { min-height: 44px; padding: 8px 22px; font-size: 1rem; }
+.vw .btn { min-height: 44px; padding: 10px 28px; font-size: 1.02rem; }
+.vw .notice { font-size: 1rem; padding: 12px 20px; line-height: 1.7; }
+.vw .db-progress { padding: 16px 20px; }
+.vw .db-progress .row { font-size: 1.1rem; }
+.vw .db-bar { height: 8px; }
+.vw .txt-switch { padding: 20px 26px; border-radius: 16px; gap: 20px; }
+.vw .txt-switch .t { font-size: 1.08rem; }
+.vw .txt-switch .t b { font-size: 1.3rem; }
+.vw .help h3 { font-size: 1.6rem; margin: 40px 0 12px; }
+.vw .help h3:first-child { margin-top: 0; }
+.vw .help h4 { font-size: 1.22rem; margin: 26px 0 8px; }
+.vw .help p, .vw .help li { font-size: 1.05rem; line-height: 1.8; }
+.vw .help .notice { margin-top: 0; }
+.vw .help ul, .vw .help ol { margin-right: 28px; }
+.vw .shot { margin: 12px 0 22px; }
+.vw .shot img { width: auto; max-width: min(100%, 680px); height: auto; }   /* תמונות ההסבר קטנות: עד 680px, ולא מוגדלות מעבר לגודל המקור */
+.vw .shot .ph { min-height: 160px; font-size: 1.05rem; }
+.vw .shot figcaption { font-size: 0.95rem; }
+.modal { max-width: min(640px, 100%); padding: 28px 32px; border-radius: 16px; }
+.modal h3 { font-size: 1.5rem; margin-bottom: 12px; }
+.modal p, .modal ul { font-size: 1.1rem; line-height: 1.8; }
+.modal label { font-size: 1.05rem; margin: 16px 0; min-height: 44px; }
+.modal .btn { min-height: 48px; padding: 12px 24px; font-size: 1.05rem; }
 </style>
 </head>
 <body>
 <div class="app-shell">
 
+<!-- ═══ תצוגה 1 (ברירת מחדל): הורדת המסד ═══ -->
+<div class="view vw" id="view-db">
 <div class="topbar">
-    <h2>הורדת מאגר ספרים</h2>
+    <h2>הורדת המסד של מאגר הספרים</h2>
+    <button class="back-btn" type="button" id="open-help-btn">עזרה והסבר</button>
+</div>
+<div class="app-content"><div class="page">
+
+    <div class="db-card">
+        <div class="db-head">
+            <span class="db-name" id="db-name">מאגר ספרים לא רשמי</span>
+            <span class="db-chip" id="db-version-chip" hidden></span>
+            <span class="db-chip" id="db-size-chip">טוען...</span>
+        </div>
+        <div class="db-sub" id="db-info-note" aria-live="polite">טוען פרטי גרסה...</div>
+
+        <p class="section-title" style="margin-top:16px;">בפעם הראשונה</p>
+        <ol class="db-steps">
+            <li>בחרו <b>תיקייה</b> לשמירת הקובץ, ולחצו <b>"הורד את המסד"</b>.</li>
+            <li>באוצריא היכנסו אל <b>הגדרות ← ספרייה ← מסדי ספרים אישיים</b> ולחצו <b>"ייבא קובץ מסד"</b>, ובחרו את הקובץ <b><bdi dir="ltr" class="ltr">otzarya-unofficial-books.db</bdi></b> מהתיקייה.</li>
+            <li>המסד יצורף וייפתח חלון <b>"המסד צורף"</b>. הוא יוצג כ-<b>"חתום · <bdi dir="ltr" class="ltr">github.com</bdi>"</b>. <br><span class="alt">חלופה: "הוסף תיקיית מסדים" ובחירת התיקייה. אוצריא מצרפת כל קובץ <code dir="ltr">.db</code> שבה.</span></li>
+        </ol>
+
+        <div class="db-folder">
+            <span class="lbl">תיקיית המסדים:</span>
+            <span class="path" id="db-folder-path" dir="ltr">לא נבחרה</span>
+            <button class="btn btn-text" type="button" id="db-pick-btn" >בחר תיקייה</button>
+        </div>
+
+        <div class="notice warn" style="display:block;margin:0 0 12px;"><b>אם המסד כבר מצורף באוצריא: אין צורך להוריד שוב.</b> העדכונים מגיעים דרך אוצריא. הורדה חוזרת אל אותה תיקייה כותבת על הקובץ שבשימוש ועלולה להיכשל; אם בכל זאת צריך, הורידו לתיקייה אחרת.</div>
+        <div class="db-actions">
+            <button class="btn btn-primary" type="button" id="db-download-btn">הורד את המסד</button>
+        </div>
+
+        <div class="db-progress" id="db-progress" role="status" aria-live="polite">
+            <div class="row"><span id="db-progress-text">מוריד...</span><span id="db-progress-time" style="opacity:.6;">0:00</span></div>
+            <div class="db-bar"><i></i></div>
+            <div class="db-sub" style="margin-top:8px;">אין אחוזי התקדמות להורדה הזו. אפשר להמשיך להשתמש באוצריא; אל תסגרו את התוסף עד הסיום.</div>
+        </div>
+        <div class="notice ok" id="db-done" role="status"></div>
+        <div class="notice err" id="db-error" role="alert"></div>
+    </div>
+
+    <div class="txt-switch">
+        <div class="t"><b>מעדיפים קבצי TXT?</b>הורדת ספרים בודדים או תיקיות, עדכון שינויים וקבצי קישורים, לפי התצוגה הקודמת של התוסף.</div>
+        <button class="btn btn-outline" type="button" id="open-txt-btn">הורדת ספרים כקבצי TXT</button>
+    </div>
+
+</div></div><!-- /.app-content -->
+</div><!-- /#view-db -->
+
+<!-- ═══ תצוגה 2: עזרה והסבר ═══ -->
+<div class="view vw" id="view-help" hidden>
+<div class="topbar">
+    <div class="topbar-start">
+        <button class="back-btn" type="button" id="help-back-btn">&rarr; חזרה למסד</button>
+        <h2>עזרה והסבר</h2>
+    </div>
+</div>
+<div class="app-content"><div class="page help">
+
+    <h3>מהו המסד ומה בתוכו</h3>
+    <p>המסד "מאגר ספרים לא רשמי" הוא קובץ אחד (<code dir="ltr">otzarya-unofficial-books.db</code>) שאוצריא פותחת כמו ספרייה. הוא כולל:</p>
+    <ul>
+        <li><b>ספרים</b> &ndash; כל ספרי המאגר, מוכנים לקריאה באוצריא.</li>
+        <li><b>קישורים לספרייה הרשמית</b> &ndash; מפרשים ומראי מקומות בין ספרי המאגר לספרי אוצריא.</li>
+        <li><b>דורות</b> &ndash; שיוך כל ספר לדור שלו.</li>
+    </ul>
+    <p>בזכות זה אין צורך לחבר ולטעון קבצי קישורים ודורות ידנית, כמו בהורדת TXT. את העדכונים אוצריא מביאה בעצמה.</p>
+
+    <h3>צירוף המסד בפעם הראשונה</h3>
+    <div class="notice warn" style="display:block;margin:0 0 12px;"><b>אם המסד כבר מצורף באוצריא: אין צורך להוריד שוב.</b> העדכונים מגיעים דרך אוצריא. הורדה חוזרת אל אותה תיקייה כותבת ישירות על הקובץ שבשימוש; היא עלולה להיכשל, או להשאיר קובץ חלקי בתיקייה שאוצריא סורקת. אם בכל זאת צריך, הורידו לתיקייה אחרת.</div>
+    <h4>לפני הכול: הורדת הקובץ</h4>
+    <p>בחלון המסד לחצו "בחר תיקייה" ובחרו תיקייה לשמירת הקובץ, ואז לחצו "הורד את המסד". הקובץ יישמר בתיקייה בשם <code dir="ltr">otzarya-unofficial-books.db</code>. אל תשנו את שמו.</p>
+
+    <h4>שלב 1: ייבוא קובץ מסד באוצריא</h4>
+    <p>באוצריא היכנסו אל <b>הגדרות ← ספרייה</b>, אל הכרטיס <b>"מסדי ספרים אישיים"</b>, ולחצו <b>"ייבא קובץ מסד"</b>. זו הדרך העיקרית.</p>
+    <p>אפשר גם ללחוץ <b>"הוסף תיקיית מסדים"</b> ולבחור את התיקייה שהורדתם אליה. אוצריא מצרפת כל קובץ <code dir="ltr">.db</code> שבה.</p>
+    <figure class="shot" data-step="1"><img src="img/step-1-import.png" alt="הגדרות אוצריא: ספרייה, מסדי ספרים אישיים, ייבא קובץ מסד והוסף תיקיית מסדים"><div class="ph">תמונה תתווסף<br>(הגדרות ← ספרייה ← מסדי ספרים אישיים)</div></figure>
+
+    <h4>שלב 2: בחירת הקובץ</h4>
+    <p>בדיאלוג שנפתח (מסנן <code dir="ltr">*.db</code>) בחרו את הקובץ <code dir="ltr">otzarya-unofficial-books.db</code> מהתיקייה שהורדתם אליה.</p>
+    <figure class="shot" data-step="2"><img src="img/step-2-pick-file.png" alt="דיאלוג בחירת קובץ מסד ספרים"><div class="ph">תמונה תתווסף<br>(בחירת קובץ המסד)</div></figure>
+
+    <h4>שלב 3: אישור הצירוף</h4>
+    <p>אוצריא תציג את ההודעה <b>"המסד צורף"</b>: העדכונים שלו חתומים ויגיעו מ-<bdi dir="ltr" class="ltr">github.com</bdi>. אוצריא תבדוק שם עדכונים כשבדיקת עדכוני הספרייה פעילה, ולא תתקין דבר בלי אישור. לחצו "הבנתי".</p>
+    <figure class="shot" data-step="3"><img src="img/step-3-attached-dialog.png" alt="הודעת המסד צורף: העדכונים חתומים ויגיעו מ-github.com"><div class="ph">תמונה תתווסף<br>(הודעת "המסד צורף")</div></figure>
+
+    <h4>שלב 4: בדיקה ובחירת מצב תצוגה</h4>
+    <p>המסד מופיע בכרטיס משלו בשם "מאגר ספרים לא רשמי", עם התגיות <b>"חתום · <bdi dir="ltr" class="ltr">github.com</bdi>"</b>, קטגוריות, תוכן עניינים, מחברים, דורות וקישורים לספרים אחרים. מתחת לכותרת מוצגים הסטטוס <b>"המסד מעודכן"</b> והכפתור <b>"בדוק עדכונים"</b>.</p>
+    <p>בכרטיס יש בורר בין שני מצבים. הוא קובע איפה הספרים מוצגים בעץ הספרייה:</p>
+    <ul>
+        <li><b>בנפרד:</b> הספרים מוצגים בנפרד, תחת "ספרים אישיים".</li>
+        <li><b>ממוזג:</b> הספרים משולבים בקטגוריות הקיימות בספרייה.</li>
+    </ul>
+    <figure class="shot" data-step="4"><img src="img/step-4-card-separate.png" alt="כרטיס המסד במצב בנפרד, המסד מעודכן ובדוק עדכונים"><div class="ph">תמונה תתווסף<br>(כרטיס המסד, מצב "בנפרד")</div><figcaption>מצב "בנפרד"</figcaption></figure>
+    <figure class="shot" data-step="4b"><img src="img/step-4b-card-merged.png" alt="כרטיס המסד במצב ממוזג"><div class="ph">תמונה תתווסף<br>(כרטיס המסד, מצב "ממוזג")</div><figcaption>מצב "ממוזג"</figcaption></figure>
+
+    <h3>עדכונים</h3>
+    <p>אחרי הצירוף הראשון אין צורך להוריד שוב דרך התוסף. העדכונים מגיעים דרך אוצריא, בהסכמתכם:</p>
+    <h4>מתי אוצריא בודקת</h4>
+    <p>אוצריא בודקת עדכונים לבד, בעליית התוכנה, רק כשכל אלה מתקיימים בהגדרות (<b>הגדרות ← מערכת</b>):</p>
+    <ul>
+        <li><b>"סינכרון ומצב רשת"</b> במצב <b>"מקוון"</b>.</li>
+        <li><b>"עדכוני תוכנה וספרים"</b> מופעל.</li>
+        <li><b>"סינכרון הספרייה באופן אוטומטי"</b> מופעל.</li>
+    </ul>
+    <p>התדירות נקבעת ב<b>"תדירות בדיקת עדכונים"</b> (בכל הפעלה, פעם ביום או פעם בשבוע).</p>
+    <p>אפשר גם ללחוץ בכל זמן על <b>"בדוק עדכונים"</b> בכרטיס המסד. הבדיקה הידנית עדיין מכבדת מצב "מנותק" וכיבוי של "עדכוני תוכנה וספרים".</p>
+    <figure class="shot" data-step="5"><img src="img/step-5-update-settings.png" alt="הגדרות מערכת: סינכרון ומצב רשת, עדכוני תוכנה וספרים, תדירות בדיקת עדכונים"><div class="ph">תמונה תתווסף<br>(הגדרות ← מערכת: עדכוני תוכנה וספרים)</div></figure>
+
+    <h4>איך זה עובד</h4>
+    <ol>
+        <li>כשאוצריא בודקת עדכוני ספרייה, היא בודקת גם את <b>המניפסט החתום ב-GitHub</b>.</li>
+        <li>אם יש גרסה חדשה היא <b>מודיעה</b> על <b>"עדכון זמין (גרסה N)"</b> ומציגה בכרטיס המסד כפתור <b>"עדכן"</b>. היא לא מורידה דבר בעצמה.
+            <figure class="shot" data-step="6"><img src="img/step-6-update-available.png" alt="הודעת עדכון זמין וכפתור עדכן בכרטיס המסד"><div class="ph">תמונה תתווסף<br>(עדכון זמין, גרסה N, וכפתור "עדכן")</div></figure></li>
+        <li>לחיצה על "עדכן" פותחת <b>דיאלוג אישור</b> ובו הגרסה, המקור (<bdi dir="ltr" class="ltr">github.com</bdi>, חתום), גודל ההורדה ומה חדש, וההודעה שהמסד יוחלף במקומו והגרסה הקודמת נשמרת עד שהעדכון יאומת. <b>רק אחרי שתאשרו</b> אוצריא מורידה ומתקינה, ולא תתקין דבר בלי אישורכם.
+            <figure class="shot" data-step="7"><img src="img/step-7-update-dialog.png" alt="דיאלוג אישור העדכון"><div class="ph">תמונה תתווסף<br>(דיאלוג אישור העדכון)</div></figure></li>
+        <li>בדרך כלל יורד רק <b>תיקון קטן (דלתא)</b> ולא כל המסד.</li>
+        <li>אוצריא <b>מאמתת את החתימה</b> (בכרטיס מוצג "מאמת את הקובץ...") ומחליפה את הקובץ במקומו. במהלך העדכון נוצר גיבוי זמני של הקובץ הקודם, והוא נמחק אחרי שהקובץ החדש אומת. רק אם העדכון קרס או נכשל, הגיבוי (סיומת <code dir="ltr">.bak-update</code>) משוחזר אוטומטית בהפעלה הבאה של אוצריא.
+            <figure class="shot" data-step="8"><img src="img/step-8-verifying.png" alt="הכרטיס בזמן אימות הקובץ"><div class="ph">תמונה תתווסף<br>(מאמת את הקובץ...)</div></figure></li>
+        <li>בסיום מוצג <b>"עודכן לגרסה N"</b>.
+            <figure class="shot" data-step="9"><img src="img/step-9-updated.png" alt="הכרטיס אחרי העדכון: עודכן לגרסה N"><div class="ph">תמונה תתווסף<br>(עודכן לגרסה N)</div></figure></li>
+    </ol>
+
+    <h3>אם משהו נכשל</h3>
+    <ul>
+        <li><b>ההורדה נכשלה או נעצרה:</b> לחצו "הורד את המסד" שוב. לרוב ההורדה ממשיכה מהנקודה שבה נעצרה. אם נשאר קובץ חלקי, מחקו אותו לפני שתייבאו.</li>
+        <li><b>הודעה ש-GitHub הגביל את הבקשות:</b> המתינו כמה דקות ונסו שוב.</li>
+        <li><b>הודעה על רשימת ההיתר או על אין חיבור:</b> בדקו חיבור לאינטרנט. סינון אינטרנט עלול לחסום את <bdi dir="ltr" class="ltr">github.com</bdi>.</li>
+        <li><b>הבחירה בתיקייה נדחתה:</b> בחרו תיקייה אחרת, מחוץ לתיקיית אוצריא ולתיקיות המערכת.</li>
+        <li><b>המסד לא מופיע באוצריא:</b> ודאו שייבאתם את הקובץ <code dir="ltr">otzarya-unofficial-books.db</code> מהתיקייה שהורדתם אליה (או שהוספתם את התיקייה שלו), ושהוא מופיע בכרטיס "מסדי ספרים אישיים".</li>
+        <li><b>הספרים לא נראים במקום שציפיתם:</b> בכרטיס המסד בחרו בין "בנפרד" (תחת "ספרים אישיים") לבין "ממוזג" (בקטגוריות הקיימות).</li>
+        <li><b>העדכון נכשל:</b> אם העדכון קרס, הגיבוי הזמני (<code dir="ltr">.bak-update</code>) משוחזר אוטומטית בהפעלה הבאה של אוצריא. אפשר ללחוץ "בדוק עדכונים" בכרטיס ולנסות שוב.</li>
+        <li><b>לא מצליחים בכלל:</b> אפשר להשתמש בהורדת TXT, בכפתור "הורדת ספרים כקבצי TXT" בחלון המסד.</li>
+    </ul>
+
+</div></div>
+</div><!-- /#view-help -->
+
+<!-- ═══ תצוגה 3: הורדת ספרים כקבצי TXT (התצוגה הישנה, ללא שינוי) ═══ -->
+<div class="view" id="view-txt" hidden>
+<div class="topbar">
+    <div class="topbar-start">
+        <button class="back-btn" type="button" id="txt-back-btn">&rarr; חזרה למסד</button>
+        <h2>הורדת מאגר ספרים</h2>
+    </div>
     <div id="filter-bar" style="display:none;">
         <button id="filter-btn" onclick="toggleNewFilter()" style="
             background:var(--surface-container);color:var(--on-surface);
@@ -403,10 +717,31 @@ svg.status-icon { flex-shrink: 0; display: block; }
 <div id="links-card"></div>
 
 </div><!-- /.app-content -->
+</div><!-- /#view-txt -->
 </div><!-- /.app-shell -->
+
+<!-- חלון המלצה: מוצג רק בלחיצה על "הורד הכל" בתצוגת TXT -->
+<div class="modal-scrim" id="recommend-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recommend-title">
+        <h3 id="recommend-title">מומלץ להוריד את המסד</h3>
+        <p>המסד "מאגר ספרים לא רשמי" כולל את כל הספרים, ובנוסף:</p>
+        <ul>
+            <li>הקישורים והדורות כבר בפנים, ואין צורך לחבר ולטעון אותם ידנית.</li>
+            <li>העדכונים מגיעים דרך אוצריא: היא מודיעה על עדכון זמין, ומתקינה רק אחרי אישורכם.</li>
+        </ul>
+        <label><input type="checkbox" id="recommend-dont-show"> אל תציג שוב</label>
+        <div class="actions">
+            <button class="btn btn-primary" type="button" id="recommend-db-btn">הורד את המסד (מומלץ)</button>
+            <button class="btn btn-text" type="button" id="recommend-txt-btn">המשך להורדת TXT</button>
+            <button class="btn btn-text" type="button" id="recommend-cancel-btn">ביטול</button>
+        </div>
+    </div>
+</div>
 
 <script src="books_data.js"></script>
 <script src="removals.js"></script>
+<script src="dbmodule.js"></script>
 <script src="app.js"></script>
+<script src="dbview.js"></script>
 </body>
 </html>
