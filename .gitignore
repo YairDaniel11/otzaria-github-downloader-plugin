@@ -1,1 +1,6 @@
 *.otzplugin
+
+tools/vectors-installer/build/
+tools/vectors-installer/dist/
+tools/vectors-installer/*.spec
+tools/vectors-installer/__pycache__/
